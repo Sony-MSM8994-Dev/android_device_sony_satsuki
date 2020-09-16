@@ -33,18 +33,17 @@
 #include "property_service.h"
 #include "util.h"
 
-using android::init::import_kernel_cmdline;
-using android::init::property_set;
+using android::init::ImportKernelCmdline;
 
-void property_override(char const prop[], char const value[])
+void property_override(char const prop[], char const value[], bool add = true)
 {
-    prop_info *pi;
+    auto pi = (prop_info *) __system_property_find(prop);
 
-    pi = (prop_info*) __system_property_find(prop);
-    if (pi)
+    if (pi != nullptr) {
         __system_property_update(pi, value, strlen(value));
-    else
+    } else if (add) {
         __system_property_add(prop, strlen(prop), value, strlen(value));
+    }
 }
 
 void property_override_dual(char const system_prop[], char const vendor_prop[], char const value[])
@@ -68,20 +67,20 @@ static void import_kernel_nv(const std::string& key,
     if (key == "oemandroidboot.phoneid") {
         // Dual Sim variant contains two IMEIs separated by comma.
         if ((count(value.begin(), value.end(),',')) > 0) {
-            property_set("persist.multisim.config", "dsds");
-            property_set("persist.radio.multisim.config", "dsds");
-            property_set("ro.telephony.default_network", "9,1");
-            property_set("ro.semc.product.model", "E6883");
-            property_set("ro.semc.product.name", "Xperia Z5 Premium Dual");
+            property_override("persist.multisim.config", "dsds");
+            property_override("persist.radio.multisim.config", "dsds");
+            property_override("ro.telephony.default_network", "9,1");
+            property_override("ro.semc.product.model", "E6883");
+            property_override("ro.semc.product.name", "Xperia Z5 Premium Dual");
             property_override_triple("ro.product.model", "ro.product.system.model", "ro.product.vendor.model", "E6883");
             property_override_dual("ro.product.name", "ro.vendor.product.name", "satsuki_dsds");
             property_override_triple("ro.product.device", "ro.product.system.device", "ro.product.vendor.device", "satsuki_dsds");
             property_override("ro.build.description", "satsuki_dsds-user 7.1.1 N-MR1-KITAKAMI-170609-1025 1 dev-keys");
             property_override_triple("ro.build.fingerprint", "ro.system.build.fingerprint", "ro.vendor.build.fingerprint", "Sony/satsuki_dsds/satsuki_dsds:7.1.1/N-MR1-KITAKAMI-170609-1025/1:user/dev-keys");
         } else {
-            property_set("ro.telephony.default_network", "9");
-            property_set("ro.semc.product.model", "E6853");
-            property_set("ro.semc.product.name", "Xperia Z5 Premium");
+            property_override("ro.telephony.default_network", "9");
+            property_override("ro.semc.product.model", "E6853");
+            property_override("ro.semc.product.name", "Xperia Z5 Premium");
             property_override_triple("ro.product.model", "ro.product.system.model", "ro.product.vendor.model", "E6853");
             property_override_dual("ro.product.name", "ro.vendor.product.name", "satsuki");
             property_override_triple("ro.product.device", "ro.product.system.device", "ro.product.vendor.device", "satsuki");
@@ -93,5 +92,7 @@ static void import_kernel_nv(const std::string& key,
 
 void vendor_load_properties()
 {
-    import_kernel_cmdline(0, import_kernel_nv);
+    ImportKernelCmdline([&](const std::string& key, const std::string& value) {
+        import_kernel_nv(key, value, false);
+    });
 }
